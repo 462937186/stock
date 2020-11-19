@@ -3,7 +3,7 @@
  * @Author: YJL
  * @Date: 2020-11-18 23:18:58
  * @LastEditors: YJL
- * @LastEditTime: 2020-11-19 00:18:51
+ * @LastEditTime: 2020-11-19 23:52:52
  */
 // 请求模块（1.访问网站）
 var request = require('request');
@@ -31,7 +31,7 @@ var iterateeFunction = function (el, callback) {
     const 资产负债 = await GET资产负债(el, item)
     const 总股本 = await GET总股本(item)
     const 主营业务 = await GET主营业务(item)
-    const data = { ...季报, ...年报, ...股价, ...资产负债, ...总股本, ...主营业务, ...el }
+    const data = { ...季报, ...年报, ...股价, ...资产负债, ...总股本, ...主营业务, ...item }
     platejsonobj.push(data)
     callbacks(data);
   }, function (err, results) {
@@ -169,8 +169,7 @@ var GET主营业务 = function (item) {
         console.log("获取主营业务错误", item.label + err)
       }
       try {
-
-        resolve({ MainBusiness: body.Result.MainBusiness })
+        resolve({ MainBusiness: body.Result.JiBenZiLiao.MainBusiness })
       } catch (error) {
         console.log("获取资产负债表错误", item.label + err)
       }
