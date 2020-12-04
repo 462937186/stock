@@ -3,7 +3,7 @@
  * @Author: YJL
  * @Date: 2020-11-18 23:18:58
  * @LastEditors: YJL
- * @LastEditTime: 2020-11-19 23:52:52
+ * @LastEditTime: 2020-11-22 22:54:21
  */
 // 请求模块（1.访问网站）
 var request = require('request');
@@ -20,41 +20,7 @@ const baseRequest = request.defaults({
 })
 
 var platejson = []
-let platejsonobj = []
 
-var iterateeFunction = function (el, callback) {
-  console.log('调用开始:   ' + el.plate, time)
-  mapLimit(el.data, 20, async function (item, callbacks) {
-    const 季报 = await GET最新季报(item)
-    const 年报 = await GET年报(item)
-    const 股价 = await GET股价(item)
-    const 资产负债 = await GET资产负债(el, item)
-    const 总股本 = await GET总股本(item)
-    const 主营业务 = await GET主营业务(item)
-    const data = { ...季报, ...年报, ...股价, ...资产负债, ...总股本, ...主营业务, ...item }
-    platejsonobj.push(data)
-    callbacks(data);
-  }, function (err, results) {
-    console.log('调用结束:  ' + el.plate)
-    platejson.push({
-      name: el.plate,
-      data: _.cloneDeep(platejsonobj)
-    })
-    platejsonobj = []
-    callback(null)
-  });
-
-}
-var allEndFunction = function (err, results) { //allEndFunction会在所有异步执行结束后再调用，有点像promise.all
-  const writeStream = fs.createWriteStream(`${__dirname}/../data/stock-alldata.json`)
-  writeStream.write(JSON.stringify(platejson));
-  writeStream.end(() => {
-    console.log('stock code write finished')
-    // writeExcel(platejson)
-  })
-};
-
-mapLimit(platedata, 1, iterateeFunction, allEndFunction);
 
 var GET最新季报 = function (item) {
   return new Promise(resolve => {
@@ -221,6 +187,7 @@ var GET资产负债 = function (el, item) {
         resolve({ theRightTo })
       } catch (error) {
         console.log("获取资产负债表错误", item.label + err)
+        resolve({ theRightTo:0 })
       }
     });
   })
@@ -255,3 +222,52 @@ var GET总股本 = function (item) {
     });
   })
 }
+
+
+//request调用url主函数 (mapLimit iterator)
+async function main(item, callback, el, platejsonobj) {
+  try {
+    const 季报 = await GET最新季报(item)
+    const 年报 = await GET年报(item)
+    const 股价 = await GET股价(item)
+    const 资产负债 = await GET资产负债(el, item)
+    const 总股本 = await GET总股本(item)
+    const 主营业务 = await GET主营业务(item)
+    const data = { ...季报, ...年报, ...股价, ...资产负债, ...总股本, ...主营业务, ...item }
+    platejsonobj.push(data)
+    callback(null,data);
+  } catch (error) {
+		console.log("error", error)
+  }
+}
+
+
+var iterateeFunction =  function (el, callback) {
+  let platejsonobj = []
+  console.log('调用开始:   ' + el.plate, time)
+  mapLimit(el.data, 5000, (item, cb) => main(item, cb, el, platejsonobj),  (err, results)=> {
+    try {
+      console.log('调用结束:  ' + el.plate)
+      results = results.filter(Boolean)
+      platejson.push({
+        name: el.plate,
+        data: _.cloneDeep(results)
+      })
+      callback(null)
+    } catch (error) {
+			console.log("​error", error)
+    }
+  });
+
+}
+var allEndFunction = function (err, results) { //allEndFunction会在所有异步执行结束后再调用，有点像promise.all
+  const writeStream = fs.createWriteStream(`${__dirname}/../data/stock-alldata.json`)
+  writeStream.write(JSON.stringify(platejson));
+  writeStream.end(() => {
+    console.log('stock code write finished')
+    // writeExcel(platejson)
+  })
+};
+
+mapLimit(platedata, 1, iterateeFunction, allEndFunction);
+
